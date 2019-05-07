@@ -127,7 +127,7 @@ func (c *Client) FetchAttachmentReaders(criteria *Criteria) ([]*Attachment, erro
 
 			attachments = append(attachments, attachment)
 
-			log.Printf("Read attached file [No.%v] from message [%v/%v].\n",
+			log.Printf("Read attached [No.%v] from message [%v/%v].\n",
 				cnt2, cnt, len(seqNums))
 		}
 	}
