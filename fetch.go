@@ -1,8 +1,8 @@
 package goattach
 
 import (
+	"bytes"
 	"io"
-	"io/ioutil"
 	"log"
 
 	"github.com/emersion/go-imap"
@@ -76,9 +76,8 @@ func (c *Client) FetchAttachmentReaders(criteria *Criteria) ([]*Attachment, erro
 
 	var attachments []*Attachment
 
-	cnt := 0                           // Logging
-	cnt2 := 0                          // Logging
-	const ans string = "Hello, world!" // test
+	cnt := 0  // Logging
+	cnt2 := 0 // Logging
 
 	for message := range ch {
 		cnt++ // Logging
@@ -113,50 +112,28 @@ func (c *Client) FetchAttachmentReaders(criteria *Criteria) ([]*Attachment, erro
 				continue
 			}
 
-			log.Printf("!!!%p\n", part)      // test
-			log.Printf("!!!%p\n", part.Body) // test
-			// DebugReadAll("part.Body", &part.Body, ans) // test
+			buf := new(bytes.Buffer)
+			// buf.ReadFrom と io.Copy のメリットデメリットが不明
+			_, err = buf.ReadFrom(part.Body)
+			// _, err = io.Copy(buf, part.Body)
+			if err != nil {
+				log.Println("ReadFrom:", err)
+				continue
+			}
 
 			attachment := &Attachment{
 				Filename: fileName,
-				Reader:   part.Body}
-			DebugReadAll("field of struct", &attachment.Reader, ans) // test
+				Reader:   buf}
 
 			attachments = append(attachments, attachment)
-			DebugReadAll("slice inside of loop", &attachments[len(attachments)-1].Reader, ans) // test
 
-			// log.Printf("Fetched attached file [No.%v] from message [%v/%v].\n",
-			// 	cnt2, cnt, len(seqNums))
+			log.Printf("Read attached file [No.%v] from message [%v/%v].\n",
+				cnt2, cnt, len(seqNums))
 		}
 	}
 
 	if err := <-done; err != nil {
 		return nil, err
 	}
-
-	DebugReadAll("slice outside of loop", &attachments[len(attachments)-1].Reader, ans) // test
-	log.Println("")                                                                     // test
 	return attachments, nil
-}
-
-// DebugReadAll ...
-// io.Reader の Debug 用
-// .
-func DebugReadAll(item string, r *io.Reader, ans string) error {
-	bs, err := ioutil.ReadAll(*r)
-	if err != nil {
-		log.Println("ReadAll:", err)
-		return err
-	}
-	result := string(bs)
-	log.Println("")
-	log.Printf("[%v]\n", item)
-	log.Println("--addr:", r)
-	// if result != "" {
-	// 	log.Printf("--(contents are next line)\n%v\n", result)
-	// } else {
-	// 	log.Println("--(no contents)")
-	// }
-	log.Println("--result:", result == ans)
-	return nil
 }

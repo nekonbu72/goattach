@@ -1,6 +1,7 @@
 package goattach
 
 import (
+	"io/ioutil"
 	"testing"
 	"time"
 )
@@ -17,7 +18,8 @@ const (
 
 	name string = "998_test"
 
-	outDir = "test\\out"
+	filename string = "test.txt"
+	text     string = "Hello, world!"
 )
 
 func TestCreateClientLoggedIn(t *testing.T) {
@@ -60,8 +62,22 @@ func TestFetchAttachmentReaders(t *testing.T) {
 		Before: before,
 	}
 
-	_, err = c.FetchAttachmentReaders(criteria)
+	as, err := c.FetchAttachmentReaders(criteria)
 	if err != nil {
 		t.Errorf("FetchAttachmentReaders: %v\n", err)
+	}
+
+	for _, a := range as {
+		if a.Filename != filename {
+			t.Errorf("Filename: %v\n", "")
+		}
+
+		bs, err := ioutil.ReadAll(a.Reader)
+		if err != nil {
+			t.Errorf("ReadAll: %v\n", err)
+		}
+		if string(bs) != text {
+			t.Errorf("text: %v\n", "")
+		}
 	}
 }
