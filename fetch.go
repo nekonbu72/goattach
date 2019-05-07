@@ -121,11 +121,9 @@ func (c *Client) FetchAttachmentReaders(criteria *Criteria) ([]*Attachment, erro
 				continue
 			}
 
-			attachment := &Attachment{
+			attachments = append(attachments, &Attachment{
 				Filename: fileName,
-				Reader:   buf}
-
-			attachments = append(attachments, attachment)
+				Reader:   buf})
 
 			log.Printf("Read attached [No.%v] from message [%v/%v].\n",
 				cnt2, cnt, len(seqNums))
