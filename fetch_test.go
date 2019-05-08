@@ -21,7 +21,7 @@ type MyTest struct {
 	Name string `json:"name"`
 
 	Filename string `json:"filename"`
-	Text     string `json:"text "`
+	Text     string `json:"text"`
 }
 
 const (
@@ -31,8 +31,8 @@ const (
 func TestCreateClientLoggedIn(t *testing.T) {
 
 	mt := new(MyTest)
-	if err := sjson.NewSJSON(jsonpath, mt); err != nil {
-		t.Errorf("NewSJSON: %v\n", err)
+	if err := sjson.OpenDecode(jsonpath, mt); err != nil {
+		t.Errorf("OpenDecode: %v\n", err)
 	}
 
 	ci := &ConnInfo{
@@ -57,8 +57,8 @@ func TestCreateClientLoggedIn(t *testing.T) {
 func TestFetchAttachmentReaders(t *testing.T) {
 
 	mt := new(MyTest)
-	if err := sjson.NewSJSON(jsonpath, mt); err != nil {
-		t.Errorf("NewSJSON: %v\n", err)
+	if err := sjson.OpenDecode(jsonpath, mt); err != nil {
+		t.Errorf("OpenDecode: %v\n", err)
 	}
 
 	c, err := CreateClientLoggedIn(&ConnInfo{
