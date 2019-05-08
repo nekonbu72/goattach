@@ -4,30 +4,42 @@ import (
 	"io/ioutil"
 	"testing"
 	"time"
+
+	"github.com/nekonbu72/sjson/sjson"
 )
 
+type MyTest struct {
+	Host     string `json:"host"`
+	Port     string `json:"port"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+
+	TimeFormat   string `json:"timeFormat"`
+	SinceDay     string `json:"sinceDay"`
+	DaysDuration int    `json:"daysDuration"`
+
+	Name string `json:"name"`
+
+	Filename string `json:"filename"`
+	Text     string `json:"text "`
+}
+
 const (
-	host     string = "imapgms.jnet.sei.co.jp"
-	port     string = "993"
-	user     string = "s150209"
-	password string = "tomo0101@"
-
-	timeFormat   string = "2006-01-02 MST"
-	sinceDay     string = "2019-05-05 JST"
-	daysDuration int    = 1
-
-	name string = "998_test"
-
-	filename string = "test.txt"
-	text     string = "Hello, world!"
+	jsonpath string = "test.json"
 )
 
 func TestCreateClientLoggedIn(t *testing.T) {
+
+	mt := new(MyTest)
+	if err := sjson.NewSJSON(jsonpath, mt); err != nil {
+		t.Errorf("NewSJSON: %v\n", err)
+	}
+
 	ci := &ConnInfo{
-		Host:     host,
-		Port:     port,
-		User:     user,
-		Password: password,
+		Host:     mt.Host,
+		Port:     mt.Port,
+		User:     mt.User,
+		Password: mt.Password,
 	}
 
 	c, err := CreateClientLoggedIn(ci)
@@ -43,21 +55,27 @@ func TestCreateClientLoggedIn(t *testing.T) {
 	}
 }
 func TestFetchAttachmentReaders(t *testing.T) {
+
+	mt := new(MyTest)
+	if err := sjson.NewSJSON(jsonpath, mt); err != nil {
+		t.Errorf("NewSJSON: %v\n", err)
+	}
+
 	c, err := CreateClientLoggedIn(&ConnInfo{
-		Host:     host,
-		Port:     port,
-		User:     user,
-		Password: password,
+		Host:     mt.Host,
+		Port:     mt.Port,
+		User:     mt.User,
+		Password: mt.Password,
 	})
 	if err != nil {
 		t.Errorf("CreateClientLoggedIn: %v\n", err)
 	}
 	defer c.Logout()
 
-	since, _ := time.Parse(timeFormat, sinceDay)
-	before := since.AddDate(0, 0, daysDuration)
+	since, _ := time.Parse(mt.TimeFormat, mt.SinceDay)
+	before := since.AddDate(0, 0, mt.DaysDuration)
 	criteria := &Criteria{
-		Name:   name,
+		Name:   mt.Name,
 		Since:  since,
 		Before: before,
 	}
@@ -68,7 +86,7 @@ func TestFetchAttachmentReaders(t *testing.T) {
 	}
 
 	for _, a := range as {
-		if a.Filename != filename {
+		if a.Filename != mt.Filename {
 			t.Errorf("Filename: %v\n", "")
 		}
 
@@ -76,7 +94,7 @@ func TestFetchAttachmentReaders(t *testing.T) {
 		if err != nil {
 			t.Errorf("ReadAll: %v\n", err)
 		}
-		if string(bs) != text {
+		if string(bs) != mt.Text {
 			t.Errorf("text: %v\n", "")
 		}
 	}
