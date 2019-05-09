@@ -29,7 +29,6 @@ const (
 )
 
 func TestCreateClientLoggedIn(t *testing.T) {
-
 	mt := new(MyTest)
 	if err := sjson.OpenDecode(jsonpath, mt); err != nil {
 		t.Errorf("OpenDecode: %v\n", err)
@@ -54,8 +53,8 @@ func TestCreateClientLoggedIn(t *testing.T) {
 		t.Errorf("CreateClientLoggedIn: %v\n", err)
 	}
 }
-func TestFetchAttachmentReaders(t *testing.T) {
 
+func TestFetchMessages(t *testing.T) {
 	mt := new(MyTest)
 	if err := sjson.OpenDecode(jsonpath, mt); err != nil {
 		t.Errorf("OpenDecode: %v\n", err)
@@ -80,9 +79,51 @@ func TestFetchAttachmentReaders(t *testing.T) {
 		Before: before,
 	}
 
-	as, err := c.FetchAttachmentReaders(criteria)
+	ch, done := newChanFetchMessages()
+	go func() { done <- c.fetchMessages(criteria, ch) }()
+	if err := <-done; err != nil {
+		t.Errorf("fetch: %v\n", err)
+	}
+}
+
+func TestFetchAttachments(t *testing.T) {
+	mt := new(MyTest)
+	if err := sjson.OpenDecode(jsonpath, mt); err != nil {
+		t.Errorf("OpenDecode: %v\n", err)
+	}
+
+	c, err := CreateClientLoggedIn(&ConnInfo{
+		Host:     mt.Host,
+		Port:     mt.Port,
+		User:     mt.User,
+		Password: mt.Password,
+	})
 	if err != nil {
-		t.Errorf("FetchAttachmentReaders: %v\n", err)
+		t.Errorf("CreateClientLoggedIn: %v\n", err)
+	}
+	defer c.Logout()
+
+	since, _ := time.Parse(mt.TimeFormat, mt.SinceDay)
+	before := since.AddDate(0, 0, mt.DaysDuration)
+	criteria := &Criteria{
+		Name:   mt.Name,
+		Since:  since,
+		Before: before,
+	}
+
+	ch, done := NewChanFetchAttachments(1)
+	go func() { done <- c.FetchAttachments(criteria, ch) }()
+	var as []*Attachment
+	for a := range ch {
+		as = append(as, a)
+	}
+
+	if err := <-done; err != nil {
+		t.Errorf("FetchAttachments: %v\n", err)
+	}
+
+	if len(as) != 1 {
+		t.Error("FetchAttachments")
 	}
 
 	for _, a := range as {
