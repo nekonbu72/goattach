@@ -97,8 +97,8 @@ func (c *Client) FetchAttachments(criteria *Criteria, ch chan *Attachment) error
 	defer close(ch)
 	ch0, done := newChanFetchMessages()
 	go func() { done <- c.fetchMessages(criteria, ch0) }()
-	for message := range ch0 {
-		if err := c.readMessageAsAttachment(message, ch); err != nil {
+	for m := range ch0 {
+		if err := c.fetchAttachment(m, ch); err != nil {
 			continue
 		}
 	}
@@ -109,14 +109,14 @@ func (c *Client) FetchAttachments(criteria *Criteria, ch chan *Attachment) error
 	return nil
 }
 
-func (c *Client) readMessageAsAttachment(m *imap.Message, ch chan *Attachment) error {
-	mailReader, err := mail.CreateReader(m.GetBody(c.section))
+func (c *Client) fetchAttachment(m *imap.Message, ch chan *Attachment) error {
+	r, err := mail.CreateReader(m.GetBody(c.section))
 	if err != nil {
 		return err
 	}
 
 	for {
-		part, err := mailReader.NextPart()
+		p, err := r.NextPart()
 		if err == io.EOF {
 			break
 		}
@@ -124,7 +124,7 @@ func (c *Client) readMessageAsAttachment(m *imap.Message, ch chan *Attachment) e
 			continue
 		}
 
-		a, err := readAttachment(part)
+		a, err := toAttachment(p)
 		if err != nil {
 			continue
 		}
@@ -133,14 +133,13 @@ func (c *Client) readMessageAsAttachment(m *imap.Message, ch chan *Attachment) e
 	return nil
 }
 
-func readAttachment(p *mail.Part) (*Attachment, error) {
-	attachmentHeader, ok := p.Header.(*mail.AttachmentHeader)
+func toAttachment(p *mail.Part) (*Attachment, error) {
+	h, ok := p.Header.(*mail.AttachmentHeader)
 	if !ok {
 		// 添付ファイル以外の場合
 		return nil, errors.New("Type Assertion not ok")
 	}
-
-	fileName, err := attachmentHeader.Filename()
+	fileName, err := h.Filename()
 	if err != nil {
 		return nil, err
 	}
