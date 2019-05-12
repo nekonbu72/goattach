@@ -9,13 +9,13 @@ type ConnInfo struct {
 	Password string `json:"password"`
 }
 
-func (c *ConnInfo) Address() (string, error) {
+func (c *ConnInfo) address() (string, error) {
 	if !c.isValid() {
-		return "", errors.New("goattach: conn fields error")
+		return "", errors.New("goattach: conninfo fields error")
 	}
 
-	const connectHostPort string = ":"
-	return c.Host + connectHostPort + c.Port, nil
+	const delimiter string = ":"
+	return c.Host + delimiter + c.Port, nil
 }
 
 func (c *ConnInfo) isValid() bool {

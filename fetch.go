@@ -8,6 +8,9 @@ import (
 
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
+
+	// ISO-2022-JP で encode された日本語メールを読むのに必要
+	_ "github.com/emersion/go-message/charset"
 	"github.com/emersion/go-message/mail"
 )
 
@@ -15,13 +18,21 @@ type Client struct {
 	imapClient *client.Client
 	connInfo   *ConnInfo
 	section    *imap.BodySectionName
+	msgCnt     int
 }
+
+// Criteria ...
+// Go 1.9 (August 2017) の新機能 type alias を使用
+// 'type A B'と 'type A = B' は異なるので注意
+// ユーザーが imap パッケージを import 不要となる
+// .
+type Criteria = imap.SearchCriteria
 
 // CreateClientLoggedIn ...
 // Don't forget 'defer Client.Logout()'
 // .
 func CreateClientLoggedIn(ci *ConnInfo) (*Client, error) {
-	addr, err := ci.Address()
+	addr, err := ci.address()
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +48,7 @@ func CreateClientLoggedIn(ci *ConnInfo) (*Client, error) {
 	}
 	log.Printf("Logged in as [%v].\n", ci.User)
 
-	return &Client{imapClient: c, connInfo: ci}, nil
+	return &Client{imapClient: c, connInfo: ci, section: new(imap.BodySectionName)}, nil
 }
 
 func (c *Client) Logout() error {
@@ -54,28 +65,24 @@ func newChanFetchMessages() (chan *imap.Message, chan error) {
 // 引数・返り値にしてゴルーチンで使用する
 // go func() { done <- c.fetchMessages(criteria, ch) }()
 // .
-func (c *Client) fetchMessages(criteria *Criteria, ch chan *imap.Message) error {
-	icr, err := criteria.CreateImapSearch()
-	if err != nil {
+func (c *Client) fetchMessages(name string, criteria *Criteria, ch chan *imap.Message) error {
+	// 読み取り専用（readOnly: true）で開く
+	if _, err := c.imapClient.Select(name, true); err != nil {
 		return err
 	}
-
-	if _, err := c.imapClient.Select(criteria.Name, true); err != nil {
-		return err
-	}
-	log.Printf("Selected [%v].\n", criteria.Name)
+	log.Printf("Selected [%v].\n", name)
 
 	const timeFormat string = "06/01/02 00:00 MST"
 	log.Printf("Search Criteria is [%v] ~ [%v].\n",
 		criteria.Since.Format(timeFormat), criteria.Before.Format(timeFormat))
 
-	seqNums, err := c.imapClient.Search(icr)
+	seqNums, err := c.imapClient.Search(criteria)
 	if err != nil {
 		return err
 	}
-	log.Printf("Found [%v] message(s).\n", len(seqNums))
+	c.msgCnt = len(seqNums)
+	log.Printf("Found [%v] message(s).\n", c.msgCnt)
 
-	c.section = new(imap.BodySectionName)
 	items := []imap.FetchItem{c.section.FetchItem()}
 	seqset := new(imap.SeqSet)
 	seqset.AddNum(seqNums...)
@@ -93,10 +100,10 @@ func NewChanFetchAttachments(buffer int) (chan *Attachment, chan error) {
 // 引数・返り値にしてゴルーチンで使用する
 // go func() { done <- c.FetchAttachments(criteria, ch) }()
 // .
-func (c *Client) FetchAttachments(criteria *Criteria, ch chan *Attachment) error {
+func (c *Client) FetchAttachments(name string, criteria *Criteria, ch chan *Attachment) error {
 	defer close(ch)
 	ch0, done := newChanFetchMessages()
-	go func() { done <- c.fetchMessages(criteria, ch0) }()
+	go func() { done <- c.fetchMessages(name, criteria, ch0) }()
 	for m := range ch0 {
 		if err := c.fetchAttachment(m, ch); err != nil {
 			continue
@@ -139,21 +146,15 @@ func toAttachment(p *mail.Part) (*Attachment, error) {
 		// 添付ファイル以外の場合
 		return nil, errors.New("Type Assertion not ok")
 	}
+
 	fileName, err := h.Filename()
 	if err != nil {
 		return nil, err
 	}
 
-	r, w := io.Pipe()
 	done := make(chan error, 1)
-	go func() {
-		defer w.Close()
-		_, err := io.Copy(w, p.Body)
-		done <- err
-	}()
-
 	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(r)
+	_, err = buf.ReadFrom(utilPipe(p.Body, done))
 	if err != nil {
 		return nil, err
 	}
@@ -162,4 +163,21 @@ func toAttachment(p *mail.Part) (*Attachment, error) {
 		return nil, err
 	}
 	return &Attachment{Filename: fileName, Reader: buf}, nil
+}
+
+func (c *Client) FetchMail(name string, criteria *Criteria, ch chan *Mail) error {
+
+	ch1, done1 := newChanFetchMessages()
+	go func() { done1 <- c.fetchMessages(name, criteria, ch1) }()
+	// ch2, done2 := newChanPipeMail(c.msgCnt)
+	done2 := make(chan error, 1)
+	go func() { done2 <- pipeMail(ch, ch1, c.section, Date, From, To, Cc, Sub, Text, Attachments) }()
+
+	if err := <-done1; err != nil {
+		return err
+	}
+	if err := <-done2; err != nil {
+		return err
+	}
+	return nil
 }
