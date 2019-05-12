@@ -1,6 +1,7 @@
 package goattach
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 	"time"
@@ -103,20 +104,20 @@ func pipeMail(dst chan *Mail, src chan *imap.Message, section *imap.BodySectionN
 						}
 
 						done := make(chan error, 1)
-						// buf := new(bytes.Buffer)
-						// _, err = buf.ReadFrom(utilPipe(p.Body, done))
-						// if err != nil {
-						// 	return err
-						// }
+						buf := new(bytes.Buffer)
+						_, err = buf.ReadFrom(utilPipe(p.Body, done))
+						if err != nil {
+							return err
+						}
 
 						if err := <-done; err != nil {
 							return err
 						}
 
-						nm.Attachments = append(nm.Attachments, &Attachment{
-							Filename: fileName,
-							Reader:   utilPipe(p.Body, done)})
-						// nm.Attachments = append(nm.Attachments, &Attachment{Filename: fileName, Reader: buf})
+						// nm.Attachments = append(nm.Attachments, &Attachment{
+						// 	Filename: fileName,
+						// 	Reader:   utilPipe(p.Body, done)})
+						nm.Attachments = append(nm.Attachments, &Attachment{Filename: fileName, Reader: buf})
 					}
 				}
 			}
