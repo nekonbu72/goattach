@@ -21,8 +21,13 @@ type MyTest struct {
 
 	Name string `json:"name"`
 
-	Filename string `json:"filename"`
+	Date     string `json:"date"`
+	From     string `json:"from"`
+	To       string `json:"to"`
+	Sub      string `json:"sub"`
 	Text     string `json:"text"`
+	FileName string `json:"fileName"`
+	FileText string `json:"fileText"`
 
 	Criteria *mailg.Criteria
 }
@@ -105,16 +110,36 @@ func TestFetch(t *testing.T) {
 		t.Error("Fetch")
 	}
 
+	if ms[0].Date.Format(mt.TimeFormat) != mt.Date {
+		t.Errorf("Date: %v\n", ms[0].Date.Format(mt.TimeFormat))
+	}
+
+	if ms[0].From[0] != mt.From {
+		t.Errorf("From: %v\n", ms[0].From[0])
+	}
+
+	if ms[0].To[0] != mt.To {
+		t.Errorf("To: %v\n", ms[0].To[0])
+	}
+
+	if ms[0].Sub != mt.Sub {
+		t.Errorf("Sub: %v\n", ms[0].Sub)
+	}
+
+	if ms[0].Text != mt.Text {
+		t.Errorf("Text: %v\n", ms[0].Text)
+	}
+
 	a := ms[0].Attachments[0]
-	if a.Filename != mt.Filename {
-		t.Errorf("Filename: %v\n", "")
+	if a.Filename != mt.FileName {
+		t.Errorf("FileName: %v\n", a.Filename)
 	}
 
 	bs, err := ioutil.ReadAll(a.Reader)
 	if err != nil {
 		t.Errorf("ReadAll: %v\n", err)
 	}
-	if string(bs) != mt.Text {
-		t.Errorf("text: %v\n", "")
+	if string(bs) != mt.FileText {
+		t.Errorf("fileText: %v\n", string(bs))
 	}
 }
