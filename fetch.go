@@ -1,4 +1,4 @@
-package goattach
+package gomailpher
 
 import (
 	"bytes"
@@ -154,7 +154,7 @@ func toAttachment(p *mail.Part) (*Attachment, error) {
 
 	done := make(chan error, 1)
 	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(utilPipe(p.Body))
+	_, err = buf.ReadFrom(p.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +171,7 @@ func (c *Client) FetchMail(name string, criteria *Criteria, ch chan *Mail) error
 	go func() { done1 <- c.fetchMessages(name, criteria, ch1) }()
 	// ch2, done2 := newChanPipeMail(c.msgCnt)
 	done2 := make(chan error, 1)
-	go func() { done2 <- pipeMail(ch, ch1, c.section, Date, From, To, Cc, Sub, Text, Attachments) }()
+	go func() { done2 <- pipeMail(ch, ch1, c.section, NewMailItems().All()) }()
 
 	if err := <-done1; err != nil {
 		return err

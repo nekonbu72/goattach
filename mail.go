@@ -1,4 +1,4 @@
-package goattach
+package gomailpher
 
 import (
 	"bytes"
@@ -29,7 +29,7 @@ func newChanPipeMail(buffer int) (chan *Mail, chan error) {
 	return make(chan *Mail, buffer), make(chan error, 1)
 }
 
-func pipeMail(dst chan *Mail, src chan *imap.Message, section *imap.BodySectionName, items ...MailItem) error {
+func pipeMail(dst chan *Mail, src chan *imap.Message, section *imap.BodySectionName, items *MailItems) error {
 	// src は送信元で close してくれる
 	defer close(dst)
 	for m := range src {
@@ -42,42 +42,42 @@ func pipeMail(dst chan *Mail, src chan *imap.Message, section *imap.BodySectionN
 
 		h := r.Header
 
-		if hasItem(items, Date) {
+		if items.has(date) {
 			nm.Date, err = h.Date()
 			if err != nil {
 				return err
 			}
 		}
 
-		if hasItem(items, From) {
+		if items.has(from) {
 			nm.From, err = h.Text("From")
 			if err != nil {
 				return err
 			}
 		}
 
-		if hasItem(items, To) {
+		if items.has(to) {
 			nm.To, err = h.Text("To")
 			if err != nil {
 				return err
 			}
 		}
 
-		if hasItem(items, Cc) {
+		if items.has(cc) {
 			nm.Cc, err = h.Text("Cc")
 			if err != nil {
 				return err
 			}
 		}
 
-		if hasItem(items, Sub) {
+		if items.has(sub) {
 			nm.Sub, err = h.Subject()
 			if err != nil {
 				return err
 			}
 		}
 
-		if hasTextORAttachments(items) {
+		if items.hasTextORAttachment() {
 			for {
 				p, err := r.NextPart()
 				if err == io.EOF {
@@ -89,7 +89,7 @@ func pipeMail(dst chan *Mail, src chan *imap.Message, section *imap.BodySectionN
 
 				switch h := p.Header.(type) {
 				case *mail.InlineHeader:
-					if hasItem(items, Text) {
+					if items.has(text) {
 						b, err := ioutil.ReadAll(p.Body)
 						if err != nil {
 							return err
@@ -97,18 +97,18 @@ func pipeMail(dst chan *Mail, src chan *imap.Message, section *imap.BodySectionN
 						nm.Text = string(b)
 					}
 				case *mail.AttachmentHeader:
-					if hasItem(items, Attachments) {
+					if items.has(attachment) {
 						fileName, err := h.Filename()
 						if err != nil {
 							return err
 						}
 
-						buf := new(bytes.Buffer)
-						buf.ReadFrom(utilPipe(p.Body))
-						nm.Attachments = append(nm.Attachments, &Attachment{
-							Filename: fileName,
-							Reader:   utilPipe(buf),
-						})
+						buf := bytes.NewBuffer(nil)
+						_, err = buf.ReadFrom(p.Body)
+						if err != nil {
+							return err
+						}
+						nm.Attachments = append(nm.Attachments, &Attachment{Filename: fileName, Reader: buf})
 					}
 				}
 			}
@@ -116,25 +116,4 @@ func pipeMail(dst chan *Mail, src chan *imap.Message, section *imap.BodySectionN
 		dst <- nm
 	}
 	return nil
-}
-
-func utilPipe(src io.Reader) *io.PipeReader {
-	r, w := io.Pipe()
-	go func() {
-		defer w.Close()
-		io.Copy(w, src)
-	}()
-	return r
-}
-
-func copyPipe(src io.Reader) *io.PipeReader {
-	r, w := io.Pipe()
-	go func() {
-		defer w.Close()
-		buf := new(bytes.Buffer)
-		io.Copy(buf, src)
-		// buf.ReadFrom(src)
-		io.Copy(w, buf)
-	}()
-	return r
 }

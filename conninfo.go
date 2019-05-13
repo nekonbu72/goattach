@@ -1,4 +1,4 @@
-package goattach
+package gomailpher
 
 import "errors"
 
@@ -11,7 +11,7 @@ type ConnInfo struct {
 
 func (c *ConnInfo) address() (string, error) {
 	if !c.isValid() {
-		return "", errors.New("goattach: conninfo fields error")
+		return "", errors.New("gomailpher: conninfo fields error")
 	}
 
 	const delimiter string = ":"

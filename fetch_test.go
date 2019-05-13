@@ -1,10 +1,11 @@
-package goattach
+package gomailpher_test
 
 import (
 	"io/ioutil"
 	"testing"
 	"time"
 
+	. "github.com/nekonbu72/gomailpher"
 	"github.com/nekonbu72/sjson/sjson"
 )
 
@@ -80,17 +81,6 @@ func TestCreateClientLoggedIn(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("CreateClientLoggedIn: %v\n", err)
-	}
-}
-
-func TestFetchMessages(t *testing.T) {
-	mt, c := createMyTestClient()
-	defer c.Logout()
-
-	ch, done := newChanFetchMessages()
-	go func() { done <- c.fetchMessages(mt.Name, mt.Criteria, ch) }()
-	if err := <-done; err != nil {
-		t.Errorf("fetch: %v\n", err)
 	}
 }
 
