@@ -103,21 +103,12 @@ func pipeMail(dst chan *Mail, src chan *imap.Message, section *imap.BodySectionN
 							return err
 						}
 
-						done := make(chan error, 1)
 						buf := new(bytes.Buffer)
-						_, err = buf.ReadFrom(utilPipe(p.Body, done))
-						if err != nil {
-							return err
-						}
-
-						if err := <-done; err != nil {
-							return err
-						}
-
-						// nm.Attachments = append(nm.Attachments, &Attachment{
-						// 	Filename: fileName,
-						// 	Reader:   utilPipe(p.Body, done)})
-						nm.Attachments = append(nm.Attachments, &Attachment{Filename: fileName, Reader: buf})
+						buf.ReadFrom(utilPipe(p.Body))
+						nm.Attachments = append(nm.Attachments, &Attachment{
+							Filename: fileName,
+							Reader:   utilPipe(buf),
+						})
 					}
 				}
 			}
@@ -127,13 +118,23 @@ func pipeMail(dst chan *Mail, src chan *imap.Message, section *imap.BodySectionN
 	return nil
 }
 
-func utilPipe(src io.Reader, done chan error) *io.PipeReader {
+func utilPipe(src io.Reader) *io.PipeReader {
 	r, w := io.Pipe()
 	go func() {
 		defer w.Close()
-		defer close(done)
-		_, err := io.Copy(w, src)
-		done <- err
+		io.Copy(w, src)
+	}()
+	return r
+}
+
+func copyPipe(src io.Reader) *io.PipeReader {
+	r, w := io.Pipe()
+	go func() {
+		defer w.Close()
+		buf := new(bytes.Buffer)
+		io.Copy(buf, src)
+		// buf.ReadFrom(src)
+		io.Copy(w, buf)
 	}()
 	return r
 }

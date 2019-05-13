@@ -154,7 +154,7 @@ func toAttachment(p *mail.Part) (*Attachment, error) {
 
 	done := make(chan error, 1)
 	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(utilPipe(p.Body, done))
+	_, err = buf.ReadFrom(utilPipe(p.Body))
 	if err != nil {
 		return nil, err
 	}
