@@ -1,1 +1,0 @@
-package gomailpher_test

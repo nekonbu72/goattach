@@ -1,4 +1,4 @@
-package gomailpher
+package mailg
 
 type MailItem int
 
