@@ -24,7 +24,7 @@ type MyTest struct {
 	Date     string `json:"date"`
 	From     string `json:"from"`
 	To       string `json:"to"`
-	Sub      string `json:"sub"`
+	Subject  string `json:"subject"`
 	Text     string `json:"text"`
 	FileName string `json:"fileName"`
 	FileText string `json:"fileText"`
@@ -55,7 +55,7 @@ func createClient(mt *MyTest) *mailg.Client {
 		Password: mt.Password,
 	}
 
-	c, err := mailg.CreateClientLoggedIn(ci)
+	c, err := mailg.CreateClient(ci)
 	if err != nil {
 		panic("")
 	}
@@ -67,7 +67,7 @@ func createMyTestClient() (*MyTest, *mailg.Client) {
 	return mt, createClient(mt)
 }
 
-func TestCreateClientLoggedIn(t *testing.T) {
+func TestCreateClient(t *testing.T) {
 	mt := createMyTest()
 	ci := &mailg.ConnInfo{
 		Host:     mt.Host,
@@ -75,8 +75,7 @@ func TestCreateClientLoggedIn(t *testing.T) {
 		User:     mt.User,
 		Password: mt.Password,
 	}
-
-	c, err := mailg.CreateClientLoggedIn(ci)
+	c, err := mailg.CreateClient(ci)
 
 	defer func() {
 		if err := c.Logout(); err != nil {
@@ -85,7 +84,7 @@ func TestCreateClientLoggedIn(t *testing.T) {
 	}()
 
 	if err != nil {
-		t.Errorf("CreateClientLoggedIn: %v\n", err)
+		t.Errorf("CreateClient: %v\n", err)
 	}
 }
 
@@ -93,11 +92,9 @@ func TestFetch(t *testing.T) {
 	mt, c := createMyTestClient()
 	defer c.Logout()
 
+	// 原因調査中だが buffer = 0 だと deadlock する
 	ch := make(chan *mailg.Mail, 1)
-	done := make(chan error)
-
-	go func() { done <- c.Fetch(mt.Name, mt.Criteria, mailg.NewMailItems().All(), ch) }()
-	if err := <-done; err != nil {
+	if err := c.Fetch(mt.Name, mt.Criteria, mailg.NewMailItems().All(), ch); err != nil {
 		t.Errorf("Fetch: %v\n", err)
 	}
 
@@ -122,15 +119,35 @@ func TestFetch(t *testing.T) {
 		t.Errorf("To: %v\n", ms[0].To[0])
 	}
 
-	if ms[0].Sub != mt.Sub {
-		t.Errorf("Sub: %v\n", ms[0].Sub)
+	if ms[0].Subject != mt.Subject {
+		t.Errorf("Subject: %v\n", ms[0].Subject)
 	}
 
 	if ms[0].Text != mt.Text {
 		t.Errorf("Text: %v\n", ms[0].Text)
 	}
+}
 
-	a := ms[0].Attachments[0]
+func TestFetchAttachment(t *testing.T) {
+	mt, c := createMyTestClient()
+	defer c.Logout()
+
+	// 原因調査中だが buffer = 0 だと deadlock する
+	ch := make(chan *mailg.Attachment, 1)
+	if err := c.FetchAttachment(mt.Name, mt.Criteria, ch); err != nil {
+		t.Errorf("FetchAttachment: %v\n", err)
+	}
+
+	var as []*mailg.Attachment
+	for a := range ch {
+		as = append(as, a)
+	}
+
+	if len(as) != 1 {
+		t.Error("FetchAttachment")
+	}
+
+	a := as[0]
 	if a.Filename != mt.FileName {
 		t.Errorf("FileName: %v\n", a.Filename)
 	}
@@ -140,6 +157,6 @@ func TestFetch(t *testing.T) {
 		t.Errorf("ReadAll: %v\n", err)
 	}
 	if string(bs) != mt.FileText {
-		t.Errorf("fileText: %v\n", string(bs))
+		t.Errorf("FileText: %v\n", string(bs))
 	}
 }

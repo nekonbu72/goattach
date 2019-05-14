@@ -10,7 +10,7 @@ type Mail struct {
 	From        []string
 	To          []string
 	Cc          []string
-	Sub         string
+	Subject     string
 	Text        string
 	Attachments []*Attachment
 }

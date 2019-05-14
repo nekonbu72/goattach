@@ -7,7 +7,7 @@ const (
 	from
 	to
 	cc
-	sub
+	subject
 	text
 	attachment
 )
@@ -38,8 +38,8 @@ func (s *MailItems) Cc() *MailItems {
 	return s
 }
 
-func (s *MailItems) Sub() *MailItems {
-	*s = append(*s, sub)
+func (s *MailItems) Subject() *MailItems {
+	*s = append(*s, subject)
 	return s
 }
 
@@ -54,7 +54,7 @@ func (s *MailItems) Attachment() *MailItems {
 }
 
 func (s *MailItems) All() *MailItems {
-	return s.Date().From().To().Cc().Sub().Text().Attachment()
+	return s.Date().From().To().Cc().Subject().Text().Attachment()
 }
 
 func (s *MailItems) has(tgt MailItem) bool {
