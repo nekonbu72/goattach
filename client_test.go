@@ -132,7 +132,7 @@ func TestFetchAttachment(t *testing.T) {
 	mt, c := createMyTestClient()
 	defer c.Logout()
 
-	// 原因調査中だが buffer = 0 だと deadlock する
+	// 原因調査中だが buffer == 0 だと deadlock する
 	ch := make(chan *mailg.Attachment, 1)
 	if err := c.FetchAttachment(mt.Name, mt.Criteria, ch); err != nil {
 		t.Errorf("FetchAttachment: %v\n", err)
