@@ -22,13 +22,13 @@ type Client struct {
 
 // Criteria ...
 // Go 1.9 (August 2017) の新機能 type alias を使用
-// 'type A B'と 'type A = B' は異なるので注意
+// "type A B"と "type A = B" は異なるので注意
 // ユーザーが imap パッケージを import 不要となる
 // .
 type Criteria = imap.SearchCriteria
 
 // CreateClient ...
-// Don't forget 'defer Client.Logout()'
+// Don"t forget "defer Client.Logout()"
 // .
 func CreateClient(ci *ConnInfo) (*Client, error) {
 	addr, err := ci.address()
