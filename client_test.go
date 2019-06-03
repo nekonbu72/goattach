@@ -92,11 +92,9 @@ func TestFetch(t *testing.T) {
 	mt, c := createMyTestClient()
 	defer c.Logout()
 
-	// 原因調査中だが buffer = 0 だと deadlock する
-	ch := make(chan *mailg.Mail, 1)
-	if err := c.Fetch(mt.Name, mt.Criteria, mailg.NewMailItems().All(), ch); err != nil {
-		t.Errorf("Fetch: %v\n", err)
-	}
+	done := make(chan interface{})
+	defer close(done)
+	ch := c.Fetch(done, mt.Name, mt.Criteria, mailg.NewMailItems().All())
 
 	var ms []*mailg.Mail
 	for m := range ch {
@@ -104,27 +102,33 @@ func TestFetch(t *testing.T) {
 	}
 
 	if len(ms) != 1 {
-		t.Error("Fetch")
+		t.Errorf("Fetch: %v\n", len(ms))
+		return
 	}
 
 	if ms[0].Date.Format(mt.TimeFormat) != mt.Date {
 		t.Errorf("Date: %v\n", ms[0].Date.Format(mt.TimeFormat))
+		return
 	}
 
 	if ms[0].From[0] != mt.From {
 		t.Errorf("From: %v\n", ms[0].From[0])
+		return
 	}
 
 	if ms[0].To[0] != mt.To {
 		t.Errorf("To: %v\n", ms[0].To[0])
+		return
 	}
 
 	if ms[0].Subject != mt.Subject {
 		t.Errorf("Subject: %v\n", ms[0].Subject)
+		return
 	}
 
 	if ms[0].Text != mt.Text {
 		t.Errorf("Text: %v\n", ms[0].Text)
+		return
 	}
 }
 
@@ -132,11 +136,9 @@ func TestFetchAttachment(t *testing.T) {
 	mt, c := createMyTestClient()
 	defer c.Logout()
 
-	// 原因調査中だが buffer == 0 だと deadlock する
-	ch := make(chan *mailg.Attachment, 1)
-	if err := c.FetchAttachment(mt.Name, mt.Criteria, ch); err != nil {
-		t.Errorf("FetchAttachment: %v\n", err)
-	}
+	done := make(chan interface{})
+	defer close(done)
+	ch := c.FetchAttachment(done, mt.Name, mt.Criteria)
 
 	var as []*mailg.Attachment
 	for a := range ch {
@@ -144,19 +146,23 @@ func TestFetchAttachment(t *testing.T) {
 	}
 
 	if len(as) != 1 {
-		t.Error("FetchAttachment")
+		t.Errorf("FetchAttachment: %v\n", len(as))
+		return
 	}
 
 	a := as[0]
 	if a.Filename != mt.FileName {
 		t.Errorf("FileName: %v\n", a.Filename)
+		return
 	}
 
 	bs, err := ioutil.ReadAll(a.Reader)
 	if err != nil {
 		t.Errorf("ReadAll: %v\n", err)
+		return
 	}
 	if string(bs) != mt.FileText {
 		t.Errorf("FileText: %v\n", string(bs))
+		return
 	}
 }
