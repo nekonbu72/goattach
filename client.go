@@ -10,6 +10,10 @@ import (
 	_ "github.com/emersion/go-message/charset"
 )
 
+const (
+	limit int = 3
+)
+
 type Client struct {
 	imapClient *client.Client
 	connInfo   *ConnInfo
@@ -92,7 +96,7 @@ func (c *Client) Fetch(
 	items *MailItems,
 ) <-chan *Mail {
 	messageStream := c.fetchMessage(done, name, criteria)
-	return c.toMail(done, messageStream, items)
+	return c.toMail(done, messageStream, items, limit)
 }
 
 // FetchAttachment ...
@@ -106,5 +110,5 @@ func (c *Client) FetchAttachment(
 	criteria *Criteria,
 ) <-chan *Attachment {
 	messageStream := c.fetchMessage(done, name, criteria)
-	return toAttachment(done, c.toMail(done, messageStream, NewMailItems().Attachment()))
+	return toAttachment(done, c.toMail(done, messageStream, NewMailItems().Attachment(), limit))
 }

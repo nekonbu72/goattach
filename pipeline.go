@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"log"
 
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-message/mail"
@@ -31,63 +32,76 @@ func (c *Client) toMail(
 	done <-chan interface{},
 	messageStream <-chan *imap.Message,
 	items *MailItems,
+	limit int,
 ) <-chan *Mail {
 	mailStream := make(chan *Mail)
 	go func() {
 		defer close(mailStream)
+
+		errCount := 0
 		for m := range messageStream {
+			ml, err := c.messsageToMail(m, items)
+			if err != nil {
+				log.Printf("messageToMail: %v", err)
+				errCount++
+				if errCount >= limit {
+					log.Println("To many errors, breaking!")
+					break
+				}
+				continue
+			}
 			select {
 			case <-done:
 				return
-			case mailStream <- c.messsageToMail(m, items):
+			case mailStream <- ml:
 			}
 		}
 	}()
 	return mailStream
 }
 
-func (c *Client) messsageToMail(m *imap.Message, items *MailItems) *Mail {
-	nm := new(Mail)
+func (c *Client) messsageToMail(m *imap.Message, items *MailItems) (*Mail, error) {
+	ml := new(Mail)
 
 	r, err := mail.CreateReader(m.GetBody(c.section))
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	h := r.Header
 
 	if items.has(date) {
-		nm.Date, err = h.Date()
+		ml.Date, err = h.Date()
 		if err != nil {
-			return nil
+			return nil, err
 		}
 	}
 
 	if items.has(from) {
-		nm.From, err = addressToStr(h.AddressList("From"))
+		ml.From, err = addressToStr(h.AddressList("From"))
 		if err != nil {
-			return nil
+			return nil, err
 		}
 	}
 
 	if items.has(to) {
-		nm.To, err = addressToStr(h.AddressList("To"))
+		ml.To, err = addressToStr(h.AddressList("To"))
 		if err != nil {
-			return nil
+			return nil, err
 		}
 	}
 
 	if items.has(cc) {
-		nm.Cc, err = addressToStr(h.AddressList("Cc"))
+		ml.Cc, err = addressToStr(h.AddressList("Cc"))
 		if err != nil {
-			return nil
+			return nil, err
 		}
 	}
 
 	if items.has(subject) {
-		nm.Subject, err = h.Subject()
+		ml.Subject, err = h.Subject()
 		if err != nil {
-			return nil
+			return nil, err
 		}
 	}
 
@@ -98,7 +112,7 @@ func (c *Client) messsageToMail(m *imap.Message, items *MailItems) *Mail {
 				break
 			}
 			if err != nil {
-				return nil
+				return nil, err
 			}
 
 			switch h := p.Header.(type) {
@@ -106,28 +120,28 @@ func (c *Client) messsageToMail(m *imap.Message, items *MailItems) *Mail {
 				if items.has(text) {
 					b, err := ioutil.ReadAll(p.Body)
 					if err != nil {
-						return nil
+						return nil, err
 					}
-					nm.Text = string(b)
+					ml.Text = string(b)
 				}
 			case *mail.AttachmentHeader:
 				if items.has(attachment) {
 					fileName, err := h.Filename()
 					if err != nil {
-						return nil
+						return nil, err
 					}
 
 					buf := bytes.NewBuffer(nil)
 					_, err = buf.ReadFrom(p.Body)
 					if err != nil {
-						return nil
+						return nil, err
 					}
-					nm.Attachments = append(nm.Attachments, &Attachment{Filename: fileName, Reader: buf})
+					ml.Attachments = append(ml.Attachments, &Attachment{Filename: fileName, Reader: buf})
 				}
 			}
 		}
 	}
-	return nm
+	return ml, nil
 }
 
 func addressToStr(as []*mail.Address, err error) ([]string, error) {

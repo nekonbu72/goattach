@@ -146,7 +146,7 @@ func TestFetchAttachment(t *testing.T) {
 	}
 
 	if len(as) != 1 {
-		t.Errorf("FetchAttachment: %v\n", len(as))
+		t.Errorf("len: %v\n", len(as))
 		return
 	}
 
