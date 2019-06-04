@@ -55,7 +55,7 @@ func createClient(mt *MyTest) *mailg.Client {
 		Password: mt.Password,
 	}
 
-	c, err := mailg.CreateClient(ci)
+	c, err := mailg.Login(ci)
 	if err != nil {
 		panic("")
 	}
@@ -67,7 +67,7 @@ func createMyTestClient() (*MyTest, *mailg.Client) {
 	return mt, createClient(mt)
 }
 
-func TestCreateClient(t *testing.T) {
+func TestLogin(t *testing.T) {
 	mt := createMyTest()
 	ci := &mailg.ConnInfo{
 		Host:     mt.Host,
@@ -75,7 +75,7 @@ func TestCreateClient(t *testing.T) {
 		User:     mt.User,
 		Password: mt.Password,
 	}
-	c, err := mailg.CreateClient(ci)
+	c, err := mailg.Login(ci)
 
 	defer func() {
 		if err := c.Logout(); err != nil {
@@ -84,7 +84,7 @@ func TestCreateClient(t *testing.T) {
 	}()
 
 	if err != nil {
-		t.Errorf("CreateClient: %v\n", err)
+		t.Errorf("Login: %v\n", err)
 	}
 }
 

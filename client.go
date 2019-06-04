@@ -23,10 +23,10 @@ type Client struct {
 // .
 type Criteria = imap.SearchCriteria
 
-// CreateClient ...
-// Don"t forget "defer Client.Logout()"
+// Login ...
+// Don't forget "defer Client.Logout()"
 // .
-func CreateClient(ci *ConnInfo) (*Client, error) {
+func Login(ci *ConnInfo) (*Client, error) {
 	addr, err := ci.address()
 	if err != nil {
 		return nil, err
