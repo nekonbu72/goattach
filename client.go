@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	limit int = 3
+	errLimit int = 3
 )
 
 type Client struct {
@@ -96,7 +96,7 @@ func (c *Client) Fetch(
 	items *MailItems,
 ) <-chan *Mail {
 	messageStream := c.fetchMessage(done, name, criteria)
-	return c.toMail(done, messageStream, items, limit)
+	return c.toMail(done, messageStream, items, errLimit)
 }
 
 // FetchAttachment ...
@@ -110,5 +110,5 @@ func (c *Client) FetchAttachment(
 	criteria *Criteria,
 ) <-chan *Attachment {
 	messageStream := c.fetchMessage(done, name, criteria)
-	return toAttachment(done, c.toMail(done, messageStream, NewMailItems().Attachment(), limit))
+	return toAttachment(done, c.toMail(done, messageStream, NewMailItems().Attachment(), errLimit))
 }
