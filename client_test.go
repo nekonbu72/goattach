@@ -15,9 +15,9 @@ type MyTest struct {
 	User     string `json:"user"`
 	Password string `json:"password"`
 
-	TimeFormat   string `json:"timeFormat"`
-	SinceDay     string `json:"sinceDay"`
-	DaysDuration int    `json:"daysDuration"`
+	TimeLayout string `json:"timeLayout"`
+	Since      string `json:"since"`
+	Before     string `json:"before"`
 
 	Name string `json:"name"`
 
@@ -41,8 +41,8 @@ func createMyTest() *MyTest {
 	if err := sjson.OpenDecode(jsonpath, mt); err != nil {
 		panic("")
 	}
-	since, _ := time.Parse(mt.TimeFormat, mt.SinceDay)
-	before := since.AddDate(0, 0, mt.DaysDuration)
+	since, _ := time.Parse(mt.TimeLayout, mt.Since)
+	before, _ := time.Parse(mt.TimeLayout, mt.Before)
 	mt.Criteria = &mailg.Criteria{Since: since, Before: before}
 	return mt
 }
@@ -106,8 +106,8 @@ func TestFetch(t *testing.T) {
 		return
 	}
 
-	if ms[0].Date.Format(mt.TimeFormat) != mt.Date {
-		t.Errorf("Date: %v\n", ms[0].Date.Format(mt.TimeFormat))
+	if ms[0].Date.Format(mt.TimeLayout) != mt.Date {
+		t.Errorf("Date: %v\n", ms[0].Date.Format(mt.TimeLayout))
 		return
 	}
 
