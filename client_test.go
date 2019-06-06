@@ -39,10 +39,18 @@ const (
 func createMyTest() *MyTest {
 	mt := new(MyTest)
 	if err := sjson.OpenDecode(jsonpath, mt); err != nil {
-		panic("")
+		panic(err)
 	}
-	since, _ := time.Parse(mt.TimeLayout, mt.Since)
-	before, _ := time.Parse(mt.TimeLayout, mt.Before)
+	since, err := time.Parse(mt.TimeLayout, mt.Since)
+	if err != nil {
+		panic(err)
+	}
+
+	before, err := time.Parse(mt.TimeLayout, mt.Before)
+	if err != nil {
+		panic(err)
+	}
+
 	mt.Criteria = &mailg.Criteria{Since: since, Before: before}
 	return mt
 }
@@ -57,12 +65,12 @@ func createClient(mt *MyTest) *mailg.Client {
 
 	c, err := mailg.Login(ci)
 	if err != nil {
-		panic("")
+		panic(err)
 	}
 	return c
 }
 
-func createMyTestClient() (*MyTest, *mailg.Client) {
+func CreateMyTestClient() (*MyTest, *mailg.Client) {
 	mt := createMyTest()
 	return mt, createClient(mt)
 }
@@ -89,7 +97,7 @@ func TestLogin(t *testing.T) {
 }
 
 func TestFetch(t *testing.T) {
-	mt, c := createMyTestClient()
+	mt, c := CreateMyTestClient()
 	defer c.Logout()
 
 	done := make(chan interface{})
@@ -133,7 +141,7 @@ func TestFetch(t *testing.T) {
 }
 
 func TestFetchAttachment(t *testing.T) {
-	mt, c := createMyTestClient()
+	mt, c := CreateMyTestClient()
 	defer c.Logout()
 
 	done := make(chan interface{})
