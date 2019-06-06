@@ -1,26 +1,14 @@
-package mailg_test
+package mailg
 
 import (
 	"io/ioutil"
+	"path"
 	"testing"
-	"time"
 
-	"github.com/nekonbu72/mailg"
 	"github.com/nekonbu72/sjson/sjson"
 )
 
-type MyTest struct {
-	Host     string `json:"host"`
-	Port     string `json:"port"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-
-	TimeLayout string `json:"timeLayout"`
-	Since      string `json:"since"`
-	Before     string `json:"before"`
-
-	Name string `json:"name"`
-
+type TestExpect struct {
 	Date     string `json:"date"`
 	From     string `json:"from"`
 	To       string `json:"to"`
@@ -28,62 +16,41 @@ type MyTest struct {
 	Text     string `json:"text"`
 	FileName string `json:"fileName"`
 	FileText string `json:"fileText"`
-
-	Criteria *mailg.Criteria
 }
 
 const (
-	jsonpath string = "test.json"
+	testDir = "test"
+	test    = "test.json"
+	expect  = "expect.json"
 )
 
-func createMyTest() *MyTest {
-	mt := new(MyTest)
-	if err := sjson.OpenDecode(jsonpath, mt); err != nil {
+func newTestSetting() *Setting {
+	s := new(Setting)
+	if err := sjson.OpenDecode(path.Join(testDir, test), s); err != nil {
 		panic(err)
 	}
-	since, err := time.Parse(mt.TimeLayout, mt.Since)
-	if err != nil {
-		panic(err)
-	}
-
-	before, err := time.Parse(mt.TimeLayout, mt.Before)
-	if err != nil {
-		panic(err)
-	}
-
-	mt.Criteria = &mailg.Criteria{Since: since, Before: before}
-	return mt
+	return s
 }
 
-func createClient(mt *MyTest) *mailg.Client {
-	ci := &mailg.ConnInfo{
-		Host:     mt.Host,
-		Port:     mt.Port,
-		User:     mt.User,
-		Password: mt.Password,
+func newTextExpect() *TestExpect {
+	e := new(TestExpect)
+	if err := sjson.OpenDecode(path.Join(testDir, expect), e); err != nil {
+		panic(err)
 	}
+	return e
+}
 
-	c, err := mailg.Login(ci)
+func newTestClient(ci *ConnInfo) *Client {
+	c, err := Login(ci)
 	if err != nil {
 		panic(err)
 	}
 	return c
 }
 
-func CreateMyTestClient() (*MyTest, *mailg.Client) {
-	mt := createMyTest()
-	return mt, createClient(mt)
-}
-
 func TestLogin(t *testing.T) {
-	mt := createMyTest()
-	ci := &mailg.ConnInfo{
-		Host:     mt.Host,
-		Port:     mt.Port,
-		User:     mt.User,
-		Password: mt.Password,
-	}
-	c, err := mailg.Login(ci)
+	s := newTestSetting()
+	c, err := Login(s.ConnInfo)
 
 	defer func() {
 		if err := c.Logout(); err != nil {
@@ -97,58 +64,62 @@ func TestLogin(t *testing.T) {
 }
 
 func TestFetch(t *testing.T) {
-	mt, c := CreateMyTestClient()
+	s := newTestSetting()
+	c := newTestClient(s.ConnInfo)
 	defer c.Logout()
+	e := newTextExpect()
 
 	done := make(chan interface{})
 	defer close(done)
-	ch := c.Fetch(done, mt.Name, mt.Criteria, mailg.NewMailItems().All())
+	ch := c.Fetch(done, s.Criteria, NewMailItems().All())
 
-	var ms []*mailg.Mail
+	var ms []*Mail
 	for m := range ch {
 		ms = append(ms, m)
 	}
 
 	if len(ms) != 1 {
-		t.Errorf("Fetch: %v\n", len(ms))
+		t.Errorf("len: %v\n", len(ms))
 		return
 	}
 
-	if ms[0].Date.Format(mt.TimeLayout) != mt.Date {
-		t.Errorf("Date: %v\n", ms[0].Date.Format(mt.TimeLayout))
+	if ms[0].Date.Format(s.Criteria.Duration.Layout) != e.Date {
+		t.Errorf("Date: %v\n", ms[0].Date.Format(s.Criteria.Duration.Layout))
 		return
 	}
 
-	if ms[0].From[0] != mt.From {
+	if ms[0].From[0] != e.From {
 		t.Errorf("From: %v\n", ms[0].From[0])
 		return
 	}
 
-	if ms[0].To[0] != mt.To {
+	if ms[0].To[0] != e.To {
 		t.Errorf("To: %v\n", ms[0].To[0])
 		return
 	}
 
-	if ms[0].Subject != mt.Subject {
+	if ms[0].Subject != e.Subject {
 		t.Errorf("Subject: %v\n", ms[0].Subject)
 		return
 	}
 
-	if ms[0].Text != mt.Text {
+	if ms[0].Text != e.Text {
 		t.Errorf("Text: %v\n", ms[0].Text)
 		return
 	}
 }
 
 func TestFetchAttachment(t *testing.T) {
-	mt, c := CreateMyTestClient()
+	s := newTestSetting()
+	c := newTestClient(s.ConnInfo)
 	defer c.Logout()
+	e := newTextExpect()
 
 	done := make(chan interface{})
 	defer close(done)
-	ch := c.FetchAttachment(done, mt.Name, mt.Criteria)
+	ch := c.FetchAttachment(done, s.Criteria)
 
-	var as []*mailg.Attachment
+	var as []*Attachment
 	for a := range ch {
 		as = append(as, a)
 	}
@@ -159,8 +130,8 @@ func TestFetchAttachment(t *testing.T) {
 	}
 
 	a := as[0]
-	if a.Filename != mt.FileName {
-		t.Errorf("FileName: %v\n", a.Filename)
+	if a.FileName != e.FileName {
+		t.Errorf("FileName: %v\n", a.FileName)
 		return
 	}
 
@@ -169,7 +140,7 @@ func TestFetchAttachment(t *testing.T) {
 		t.Errorf("ReadAll: %v\n", err)
 		return
 	}
-	if string(bs) != mt.FileText {
+	if string(bs) != e.FileText {
 		t.Errorf("FileText: %v\n", string(bs))
 		return
 	}

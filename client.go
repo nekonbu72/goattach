@@ -20,18 +20,11 @@ type Client struct {
 	section    *imap.BodySectionName
 }
 
-// Criteria ...
-// Go 1.9 (August 2017) の新機能 type alias を使用
-// "type A B" と "type A = B" は異なるので注意
-// ユーザーが imap パッケージを import 不要となる
-// .
-type Criteria = imap.SearchCriteria
-
 // Login ...
 // Don't forget "defer Client.Logout()"
 // .
-func Login(ci *ConnInfo) (*Client, error) {
-	addr, err := ci.address()
+func Login(connInfo *ConnInfo) (*Client, error) {
+	addr, err := connInfo.address()
 	if err != nil {
 		return nil, err
 	}
@@ -42,12 +35,12 @@ func Login(ci *ConnInfo) (*Client, error) {
 	}
 	log.Printf("Connected to [%v].\n", addr)
 
-	if err := c.Login(ci.User, ci.Password); err != nil {
+	if err := c.Login(connInfo.User, connInfo.Password); err != nil {
 		return nil, err
 	}
-	log.Printf("Logged in as [%v].\n", ci.User)
+	log.Printf("Logged in as [%v].\n", connInfo.User)
 
-	return &Client{imapClient: c, connInfo: ci, section: new(imap.BodySectionName)}, nil
+	return &Client{imapClient: c, connInfo: connInfo, section: new(imap.BodySectionName)}, nil
 }
 
 func (c *Client) Logout() error {
@@ -59,21 +52,27 @@ func (c *Client) Logout() error {
 // .
 func (c *Client) fetchMessage(
 	done <-chan interface{},
-	name string,
 	criteria *Criteria,
 ) <-chan *imap.Message {
-	// 読み取り専用（readOnly: true）で開く
-	if _, err := c.imapClient.Select(name, true); err != nil {
+	sc, err := criteria.serachCriteria()
+	if err != nil {
+		log.Printf("serachCriteria: %v\n", err)
 		return nil
 	}
-	log.Printf("Selected [%v].\n", name)
 
-	const timeFormat string = "06/01/02 00:00 MST"
+	// 読み取り専用（readOnly: true）で開く
+	if _, err := c.imapClient.Select(criteria.Name, true); err != nil {
+		log.Printf("Select: %v\n", err)
+		return nil
+	}
+	log.Printf("Selected [%v].\n", criteria.Name)
+
 	log.Printf("Search Criteria is [%v] ~ [%v].\n",
-		criteria.Since.Format(timeFormat), criteria.Before.Format(timeFormat))
+		criteria.Duration.Since, criteria.Duration.Before)
 
-	seqNums, err := c.imapClient.Search(criteria)
+	seqNums, err := c.imapClient.Search(sc)
 	if err != nil {
+		log.Printf("Search: %v\n", err)
 		return nil
 	}
 	log.Printf("Found [%v] message(s).\n", len(seqNums))
@@ -91,11 +90,10 @@ func (c *Client) fetchMessage(
 // .
 func (c *Client) Fetch(
 	done <-chan interface{},
-	name string,
 	criteria *Criteria,
 	items *MailItems,
 ) <-chan *Mail {
-	messageStream := c.fetchMessage(done, name, criteria)
+	messageStream := c.fetchMessage(done, criteria)
 	return c.toMail(done, messageStream, items, errLimit)
 }
 
@@ -106,9 +104,8 @@ func (c *Client) Fetch(
 // .
 func (c *Client) FetchAttachment(
 	done <-chan interface{},
-	name string,
 	criteria *Criteria,
 ) <-chan *Attachment {
-	messageStream := c.fetchMessage(done, name, criteria)
+	messageStream := c.fetchMessage(done, criteria)
 	return toAttachment(done, c.toMail(done, messageStream, NewMailItems().Attachment(), errLimit))
 }

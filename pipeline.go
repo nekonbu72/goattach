@@ -32,7 +32,7 @@ func (c *Client) toMail(
 	done <-chan interface{},
 	messageStream <-chan *imap.Message,
 	items *MailItems,
-	limit int,
+	errLimit int,
 ) <-chan *Mail {
 	mailStream := make(chan *Mail)
 	go func() {
@@ -44,7 +44,7 @@ func (c *Client) toMail(
 			if err != nil {
 				log.Printf("messageToMail: %v", err)
 				errCount++
-				if errCount >= limit {
+				if errCount >= errLimit {
 					log.Println("To many errors, breaking!")
 					break
 				}
@@ -136,7 +136,7 @@ func (c *Client) messsageToMail(m *imap.Message, items *MailItems) (*Mail, error
 					if err != nil {
 						return nil, err
 					}
-					ml.Attachments = append(ml.Attachments, &Attachment{Filename: fileName, Reader: buf})
+					ml.Attachments = append(ml.Attachments, &Attachment{FileName: fileName, Reader: buf})
 				}
 			}
 		}
