@@ -71,10 +71,10 @@ func TestFetch(t *testing.T) {
 
 	done := make(chan interface{})
 	defer close(done)
-	ch := c.Fetch(done, s.Criteria, NewMailItems().All())
+	mailStream := c.Fetch(done, s.Criteria, NewMailItems().All())
 
 	var ms []*Mail
-	for m := range ch {
+	for m := range mailStream {
 		ms = append(ms, m)
 	}
 
@@ -117,10 +117,10 @@ func TestFetchAttachment(t *testing.T) {
 
 	done := make(chan interface{})
 	defer close(done)
-	ch := c.FetchAttachment(done, s.Criteria)
+	mailStream := c.FetchAttachment(done, s.Criteria)
 
 	var as []*Attachment
-	for a := range ch {
+	for a := range mailStream {
 		as = append(as, a)
 	}
 

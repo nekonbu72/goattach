@@ -54,16 +54,19 @@ func (c *Client) fetchMessage(
 	done <-chan interface{},
 	criteria *Criteria,
 ) <-chan *imap.Message {
+	dummyMessageStream := make(chan *imap.Message)
+	defer close(dummyMessageStream)
+
 	sc, err := criteria.serachCriteria()
 	if err != nil {
 		log.Printf("serachCriteria: %v\n", err)
-		return nil
+		return dummyMessageStream
 	}
 
 	// 読み取り専用（readOnly: true）で開く
 	if _, err := c.imapClient.Select(criteria.Name, true); err != nil {
 		log.Printf("Select: %v\n", err)
-		return nil
+		return dummyMessageStream
 	}
 	log.Printf("Selected [%v].\n", criteria.Name)
 
@@ -73,7 +76,7 @@ func (c *Client) fetchMessage(
 	seqNums, err := c.imapClient.Search(sc)
 	if err != nil {
 		log.Printf("Search: %v\n", err)
-		return nil
+		return dummyMessageStream
 	}
 	log.Printf("Found [%v] message(s).\n", len(seqNums))
 
