@@ -25,8 +25,8 @@ const (
 )
 
 func newTestSetting() *Setting {
-	s := new(Setting)
-	if err := sjson.OpenDecode(path.Join(testDir, test), s); err != nil {
+	s, err := NewSetting(path.Join(testDir, test))
+	if err != nil {
 		panic(err)
 	}
 	return s

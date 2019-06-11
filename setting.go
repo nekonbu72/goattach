@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/emersion/go-imap"
+
+	"github.com/nekonbu72/sjson/sjson"
 )
 
 type Setting struct {
@@ -17,6 +19,15 @@ type ConnInfo struct {
 	Port     string `json:"port"`
 	User     string `json:"user"`
 	Password string `json:"password"`
+}
+
+func NewSetting(path string) (*Setting, error) {
+	s := new(Setting)
+	err := sjson.OpenDecode(path, s)
+	if err != nil {
+		return nil, err
+	}
+	return s, err
 }
 
 func (c *ConnInfo) address() (string, error) {
